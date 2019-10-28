@@ -45,9 +45,15 @@ function inquirerForUpdate() {
         name: "action",
         type: "list",
         message: "Choose a command below to manage inventory",
-        choices: ["Restock Inventory", "Add New Product", "Remove Existing Product"]
+        choices: ["Products on Sale", "Low Inventory", "Restock Inventory", "Add New Product"] //"Remove Existing Product"
     }]).then(function (answer) {
         switch (answer.action) {
+            case "Products on Sale":
+                displayInventory();
+                break;
+            case "Low Inventory":
+                displayLowInventory();
+                break;
             case "Restock Inventory":
                 restockRequest();
                 break;
@@ -61,32 +67,71 @@ function inquirerForUpdate() {
     });
 };
 
-// Restock
+function displayLowInventory() {
+    queryStr = 'SELECT * FROM products WHERE stock_quantity < 100';
+    connection.query(queryStr, function (err, data) {
+        if (err) throw err;
+
+        console.log('Low Inventory Items (below 100): ');
+        console.log('................................\n');
+
+        var strOut = '';
+        for (var i = 0; i < data.length; i++) {
+            strOut = '';
+            strOut += 'Item ID: ' + data[i].item_id + '  //  ';
+            strOut += 'Product Name: ' + data[i].product_name + '  //  ';
+            strOut += 'Department: ' + data[i].department_name + '  //  ';
+            strOut += 'Price: $' + data[i].price + '  //  ';
+            strOut += 'Quantity: ' + data[i].stock_quantity + '\n';
+            console.log(strOut);
+        }
+        console.log("---------------------------------------------------------------------\n");
+        connection.end();
+    })
+}
+
 function restockRequest() {
     inquirer.prompt([{
-        name: "ID",
-        type: "input",
-        message: "What's the item number of the item you want to restock?"
-    }, {
-        name: "Quantity",
-        type: "input",
-        message: "What is the quantity you would like to add?"
-    }, ]).then(function (answer) {
-        var quantityAdded = answer.Quantity;
-        var ProductID = answer.ID;
-        restockInventory(ProductID, quantityAdded);
-    });
-};
+            type: 'input',
+            name: 'item_id',
+            message: 'Please enter the Item ID for quantity update.',
+            filter: Number
+        },
+        {
+            type: 'input',
+            name: 'quantity',
+            message: 'How many would you like to add?',
+            filter: Number
+        }
+    ]).then(function (input) {
+        var item = input.item_id;
+        var addQuantity = input.quantity;
+        var queryStr = 'SELECT * FROM products WHERE ?';
+        connection.query(queryStr, {
+            item_id: item
+        }, function (err, data) {
+            if (err) throw err;
 
-// Restock Inventory
-function restockInventory(id, invQuantity) {
-    connection.query("SELECT * FROM Products Where item_id = " + id, function (err, res) {
-        if (err) throw err;
-        connection.query("UPDATE Products SET stock_quantity" + stock_quantity + "WHERE item_id = " + item_id);
-        displayInventory();
-    });
-};
+            if (data.length === 0) {
+                console.log('ERROR: Invalid Item ID. Please select a valid Item ID.');
+                addInventory();
 
+            } else {
+                var productData = data[0];
+                console.log('Updating Inventory...');
+                var updateQueryStr = 'UPDATE products SET stock_quantity = ' + (productData.stock_quantity + addQuantity) + ' WHERE item_id = ' + item;
+                connection.query(updateQueryStr, function (err, data) {
+                    if (err) throw err;
+                    console.log('Stock count for Item ID ' + item + ' has been updated to ' + (productData.stock_quantity + addQuantity) + '.');
+                    console.log("\n---------------------------------------------------------------------\n");
+                    connection.end();
+                })
+            }
+        })
+    })
+}
+
+// Add New Product
 function addRequest() {
     inquirer.prompt([{
         name: "ID",
@@ -95,7 +140,7 @@ function addRequest() {
     }, {
         name: "Name",
         type: "input",
-        message: "What is the category for product?"
+        message: "What is the name of the product?"
     }, {
         name: "Category",
         type: "input",
@@ -110,33 +155,31 @@ function addRequest() {
         message: "What is the quantity you would like to add?"
     }, ]).then(function (answer) {
         var id = answer.id;
-        var name = answers.Name;
+        var name = answer.Name;
         var category = answer.Category;
         var price = answer.Price;
         var quantity = answer.Quantity;
-        buildNewItem(id, name, category, price, quantity);
+        console.log(name);
+        connection.query("INSERT INTO products (product_name, department_name, price, stock_quantity) VALUES(?, ?, ?, ?)", [name, category, price, quantity]);
+        displayInventory();
     });
 };
 
-function buildNewItem(name, category, price, quantity) {
-    connection.query('INSERT INTO products (item_id, product_name, department_name, price, stock_quantity) VALUES("' + id + '","' + name + '","' + category + '",' + price + ',' + quantity + ')');
-    displayInventory();
-};
+// Remove Product [WIP]
+// function removeRequest() {
+//     inquirer.prompt([{
+//         name: "ID",
+//         type: "input",
+//         message: "What is the id number of the item you wish to remove?"
+//     }]).then(function (answer) {
+//         var id = answer.ID;
+//         removeInventory(id);
+//     });
+// };
 
-function removeRequest() {
-    inquirer.prompt([{
-        name: "ID",
-        type: "input",
-        message: "What is the id number of the item you wish to remove?"
-    }]).then(function (answer) {
-        var id = answer.ID;
-        removeInventory(id);
-    });
-};
-
-function removeInventory(id) {
-    connection.query("DELETE FROM Products Where item_id = " + id);
-    displayInventory();
-};
+// function removeInventory(id) {
+//     connection.query("DELETE FROM Products Where item_id = ?" + id);
+//     displayInventory();
+// };
 
 displayInventory();
