@@ -8,7 +8,7 @@ var connection = mysql.createConnection({
     host: "localhost",
     port: 3306,
     user: "root",
-    password: "Paswword",
+    password: "Password",
     database: "bamazon"
 });
 
@@ -38,7 +38,7 @@ var displayProducts = function () {
         console.log(displayTable.toString());
         purchasePrompt();
     });
-}
+};
 
 // Purchase
 function purchasePrompt() {
@@ -63,14 +63,14 @@ function purchasePrompt() {
 
 // Order
 function purchaseOrder(ID, amountNeeded) {
-    connection.query("SELECT * FROM products WHERE item_id = " + ID, function (err, res) {
+    connection.query("SELECT * FROM products WHERE ?", {item_id: ID}, function (err, res) {
         if (err) throw err;
         if (amountNeeded <= res[0].stock_quantity) {
             var totalCost = res[0].price * amountNeeded;
             console.log("Yep its in stock!");
             console.log("Your total cost for " + amountNeeded + " " + res[0].product_name + " is " + totalCost + " Thanks now either buy something else or leave!");
 
-            connection.query("UPDATE products SET stock_quantity = stock_quantity - " + amountNeeded + "WHERE item_id = " + ID);
+            connection.query("UPDATE products SET stock_quantity = stock_quantity - ? WHERE item_id = ?", [amountNeeded, ID]);
         } else {
             console.log("Not enough in stock try another time " + res[0].product_name + "to complete your order.");
         };
